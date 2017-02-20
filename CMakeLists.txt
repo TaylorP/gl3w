@@ -6,6 +6,7 @@ set(CMAKE_VERBOSE_MAKEFILE false)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON) # -fPIC
 
 set(PYTHON_EXECUTABLE "python" CACHE STRING "")
+option(GL3W_INSTALL "Generate installation target" ON)
 
 set(SOURCE_DIR ${CMAKE_CURRENT_BINARY_DIR}/src)
 set(HEADER_DIR ${CMAKE_CURRENT_BINARY_DIR}/include)
@@ -18,11 +19,6 @@ set(HEADER_FILES
 set(SOURCE_FILES
 	"${SOURCE_DIR}/gl3w.c"
 )
-
-# add and depend on OpenGL
-find_package(OpenGL REQUIRED)
-set(EXTERNAL_INCLUDE_DIRS ${EXTERNAL_INCLUDE_DIRS} ${OPENGL_INCLUDE_DIR})
-set(EXTERNAL_LIBRARIES ${EXTERNAL_LIBRARIES} ${OPENGL_LIBRARIES})
 
 # add command to create the header and source files
 add_custom_command(
@@ -45,35 +41,13 @@ add_custom_target(
 )
 
 # create gl3w target
-add_library(${PROJECT_NAME} INTERFACE)
-
-# make gl3w target depend on the generator target
+add_library(${PROJECT_NAME} ${SOURCE_FILES})
 add_dependencies(${PROJECT_NAME} gl3w_gen)
+include_directories(${HEADER_DIR})
+target_link_libraries(${PROJECT_NAME})
 
-# let remote project know about source and header files
-target_sources(${PROJECT_NAME} INTERFACE ${SOURCE_FILES})
-target_include_directories(${PROJECT_NAME} INTERFACE
-	$<BUILD_INTERFACE:${HEADER_DIR}>
-	$<INSTALL_INTERFACE:include>
-)
-target_include_directories(${PROJECT_NAME} INTERFACE ${EXTERNAL_INCLUDE_DIRS})
-# let remote project know which libraries need to be linked
-target_link_libraries(${PROJECT_NAME} INTERFACE ${EXTERNAL_LIBRARIES} dl)
-
-set(MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-set(BUILD_CMAKE_DIR "${CMAKE_CURRENT_BINARY_DIR}/cmake")
-
-# export targets for remote projects (i.e. make find_package(gl3w) work)
-configure_file(
-	"${MODULE_PATH}/${PROJECT_NAME}-config.cmake"
-	"${BUILD_CMAKE_DIR}/${PROJECT_NAME}-config.cmake"
-	COPYONLY
-)
-
-export(
-	TARGETS ${PROJECT_NAME}
-	FILE "${BUILD_CMAKE_DIR}/${PROJECT_NAME}-targets.cmake"
-)
-
-export(PACKAGE ${PROJECT_NAME})
-
+if (GL3W_INSTALL)
+	install(DIRECTORY ${gl3w_BINARY_DIR}/include/GL DESTINATION include
+		FILES_MATCHING PATTERN gl3w.h PATTERN glcorearb.h)
+	install(FILES ${gl3w_BINARY_DIR}/libgl3w.a DESTINATION lib)
+endif ()
